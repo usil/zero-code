@@ -1,0 +1,6 @@
+[submodule "zero-code-ui"]
+	path = zero-code-ui
+	url = https://github.com/usil/zero-code-ui.git
+[submodule "zero-code-api"]
+	path = zero-code-api
+	url = https://github.com/usil/zero-code-api.git

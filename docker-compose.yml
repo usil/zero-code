@@ -1,0 +1,55 @@
+version: "3.7"
+services:
+  zero-code-ui:
+    build:
+      context: ./zero-code-ui
+      dockerfile: Dockerfile
+    container_name: zero-code-ui
+    ports:
+      - "2112:2112"
+    environment:
+      URL: http://localhost:2111
+    depends_on:
+      zero-code-api:
+        condition: service_healthy
+    networks:
+      - app_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  zero-code-api:
+    build:
+      context: ./zero-code-api
+      dockerfile: Dockerfile
+    container_name: zero-code-api
+    ports:
+      - "2111:2111"
+    environment:
+      DATA_BASE_NAME: "Facturacion"
+      DATA_BASE_HOST: host.docker.internal
+      DATA_BASE_PORT: 3306
+      DATA_BASE_USER: "root"
+      DATA_BASE_PASSWORD: "abcdefg"
+      NODE_ENV: "production"
+      JWT_SECRET: secret
+      PORT: 2111
+      SWAGGER_EMAIL: luis.huertas@metricaandina.com
+      SWAGGER_NAME: USIL
+      SWAGGER_URL: https://github.com/usil/zero-code-api
+      CRYPTO_KEY: secret_key
+    healthcheck:
+      test: curl --fail http://localhost:2111 || exit 1
+      interval: 10s
+      retries: 100
+      start_period: 20s
+      timeout: 10s
+    networks:
+      - app_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+networks:
+  app_network:
+    driver: bridge
