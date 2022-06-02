@@ -1,41 +1,50 @@
 version: "3.7"
 services:
-  zero-code-ui:
-    build:
-      context: ./zero-code-ui
-      dockerfile: Dockerfile
-    container_name: zero-code-ui
+  zero-code-db:
+    image: mysql:5.7
+    command: mysqld --sql_mode="" --general-log=1 --general-log-file=/var/log/mysql/general-log.log
+    container_name: zero-code-db
     ports:
-      - "2112:2112"
+     - "3306:3306"
     environment:
-      URL: http://localhost:2111
-    depends_on:
-      zero-code-api:
-        condition: service_healthy
-    networks:
-      - app_network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      MYSQL_ROOT_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_USER: usr_zero_code
+      MYSQL_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_DATABASE: zero_code_db
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: 'cat /var/log/mysql/general-log.log | grep "root@localhost on  using Socket"'
+      interval: 1s
+      retries: 120
   zero-code-api:
     build:
       context: ./zero-code-api
       dockerfile: Dockerfile
     container_name: zero-code-api
     ports:
-      - "2111:2111"
+      - "$ZERO_CODE_API_PORT:2111"
     environment:
-      DATA_BASE_NAME: "Facturacion"
+      DATA_BASE_NAME: "zero_code_db"
       DATA_BASE_HOST: host.docker.internal
       DATA_BASE_PORT: 3306
-      DATA_BASE_USER: "root"
-      DATA_BASE_PASSWORD: "abcdefg"
+      DATA_BASE_USER: "usr_zero_code"
+      DATA_BASE_PASSWORD: ${MYSQL_PASSWORD}
       NODE_ENV: "production"
-      JWT_SECRET: secret
+      CPU_COUNT: 1
       PORT: 2111
-      SWAGGER_EMAIL: luis.huertas@metricaandina.com
-      SWAGGER_NAME: USIL
-      SWAGGER_URL: https://github.com/usil/zero-code-api
-      CRYPTO_KEY: secret_key
+      JWT_SECRET: $JWT_SECRET
+      CRYPTO_KEY: $CRYPTO_KEY
+      DATA_BASE_ACQUIRE_CONNECTION_TIMEOUT: 10000
+      DATA_BASE_POOL_MAX: 300
+      DATA_BASE_POOL_MIN: 100
+      LOG_FILE_PATH: logs.log
+      LOG_LEVEL: "info"
+    depends_on:
+      zero-code-db:
+        condition: service_healthy
     healthcheck:
       test: curl --fail http://localhost:2111 || exit 1
       interval: 10s
@@ -50,6 +59,23 @@ services:
       resources:
         limits:
           memory: 1024M
+  zero-code-ui:
+    build:
+      context: ./zero-code-ui
+      dockerfile: Dockerfile
+    container_name: zero-code-ui
+    ports:
+      - "$ZERO_CODE_UI_PORT:2112"
+    environment:
+      ZERO_CODE_API_BASE_URL: ${ZERO_CODE_API_BASE_URL}
+      WEB_TITLE: "Zero Code"
+    depends_on:
+      zero-code-api:
+        condition: service_healthy
+    networks:
+      - app_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 networks:
   app_network:
     driver: bridge
